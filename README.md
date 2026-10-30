@@ -26,12 +26,14 @@ none of its code, files or assets are used here.
 
 ## Install
 
-On the firewall, as root:
+OPNsense ships no `git` and this repo is private, so copy the checkout over and build it
+there. From a machine that has the repo:
 
 ```sh
-git clone https://github.com/Chanclatoen/opnsense-uplink-speedtest.git
-cd opnsense-uplink-speedtest
-./install.sh
+tar -czf /tmp/uplink-speedtest.tgz --exclude=.git opnsense-uplink-speedtest
+scp /tmp/uplink-speedtest.tgz <user>@<firewall>:/tmp/
+ssh <user>@<firewall> 'mkdir -p /tmp/jst && tar -xzf /tmp/uplink-speedtest.tgz -C /tmp/jst \
+    && cd /tmp/jst/opnsense-uplink-speedtest && sudo ./install.sh'
 ```
 
 `install.sh` installs `py313-speedtest-cli` if it is missing, builds the tree in `src/` into a
@@ -43,12 +45,14 @@ Then add the cron job (System → Settings → Cron → **+**, command "Run upli
 
 ## Uninstall
 
+On the firewall, as root:
+
 ```sh
-./uninstall.sh            # keeps the measurement history
-./uninstall.sh --purge    # deletes /var/db/uplink-speedtest too
+pkg delete os-uplink-speedtest        # keeps the measurement history
+rm -rf /var/db/uplink-speedtest       # and this drops the history too
 ```
 
-Plain `pkg delete os-uplink-speedtest` does the same as the first form.
+`uninstall.sh` from the checkout does the same (`--purge` for the second line).
 
 ## Build as part of the official plugin tree
 
