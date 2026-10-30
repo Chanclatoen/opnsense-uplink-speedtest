@@ -9,7 +9,7 @@
 set -e
 
 PLUGIN="os-uplink-speedtest"
-VERSION="1.1.0"
+VERSION="1.1.1"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC="${HERE}/src"
 
