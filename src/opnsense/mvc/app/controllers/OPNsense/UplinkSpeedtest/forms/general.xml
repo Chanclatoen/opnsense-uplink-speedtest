@@ -1,0 +1,8 @@
+<form>
+    <field>
+        <id>general.server</id>
+        <label>Speedtest server</label>
+        <type>text</type>
+        <help>Numeric speedtest.net server ID to measure against. Leave empty to let speedtest-cli pick the nearest server on every run.</help>
+    </field>
+</form>

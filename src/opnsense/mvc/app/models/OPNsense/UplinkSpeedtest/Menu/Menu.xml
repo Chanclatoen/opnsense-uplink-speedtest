@@ -1,0 +1,5 @@
+<menu>
+    <Reporting>
+        <Speedtest order="90" cssClass="fa fa-tachometer fa-fw" url="/ui/uplink_speedtest" VisibleName="Speedtest"/>
+    </Reporting>
+</menu>

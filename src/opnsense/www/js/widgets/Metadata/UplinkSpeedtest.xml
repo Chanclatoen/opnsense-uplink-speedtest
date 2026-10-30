@@ -1,0 +1,17 @@
+<metadata>
+    <uplinkspeedtest>
+        <filename>UplinkSpeedtest.js</filename>
+        <link>/ui/uplink_speedtest</link>
+        <endpoints>
+            <endpoint>/api/uplink_speedtest/service/history</endpoint>
+        </endpoints>
+        <translations>
+            <title>Speedtest</title>
+            <download>Down Mbit/s</download>
+            <upload>Up Mbit/s</upload>
+            <ping>Latency ms</ping>
+            <jitter>Jitter ms</jitter>
+            <noresults>No speedtest results yet. Click to run one.</noresults>
+        </translations>
+    </uplinkspeedtest>
+</metadata>

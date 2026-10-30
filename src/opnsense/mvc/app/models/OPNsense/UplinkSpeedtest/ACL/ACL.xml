@@ -1,0 +1,9 @@
+<acl>
+    <page-uplinkspeedtest>
+        <name>Reporting: Speedtest</name>
+        <patterns>
+            <pattern>ui/uplink_speedtest/*</pattern>
+            <pattern>api/uplink_speedtest/*</pattern>
+        </patterns>
+    </page-uplinkspeedtest>
+</acl>

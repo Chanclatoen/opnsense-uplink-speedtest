@@ -1,0 +1,6 @@
+Measures the uplink with speedtest-cli on a schedule and keeps the results on the
+firewall itself. Adds a Reporting - Speedtest page (latest result, min/avg/max,
+chart, history table, server choice, run on demand), a dashboard widget with the
+latest download, upload, latency and jitter plus a sparkline of the last 20 tests,
+and a "Run uplink speedtest (Uplink)" job that can be scheduled under
+System - Settings - Cron. History is a JSON file capped at the last 1000 results.

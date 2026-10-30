@@ -1,0 +1,11 @@
+<model>
+    <mount>//OPNsense/UplinkSpeedtest/general</mount>
+    <version>1.0.0</version>
+    <description>Uplink uplink speedtest settings</description>
+    <items>
+        <server type="TextField">
+            <Mask>/^[0-9]{0,8}$/</Mask>
+            <ValidationMessage>Enter a numeric speedtest.net server ID, or leave empty to use the nearest server.</ValidationMessage>
+        </server>
+    </items>
+</model>
