@@ -1,9 +1,12 @@
 name: package
 
 # Builds the FreeBSD package on a real FreeBSD VM, attaches it to the GitHub Release of
-# the tag, and publishes a signed pkg repository to GitHub Pages. Runs on any v* tag; a
-# tag with a suffix (v1.2.1-test1) builds the same package but marks the release as a
-# pre-release, which is how a build is tried out without announcing it.
+# the tag, and publishes the signed pkg repository to the gh-pages branch that GitHub
+# Pages serves. Runs on any v* tag; a tag with a suffix (v1.2.1-test1) builds the same
+# package but marks the release as a pre-release, which is how a build is tried out.
+#
+# Nothing is kept as a workflow artifact on purpose: the release and the branch are the
+# output, and artifact storage is a quota this account has no room in.
 
 on:
   push:
@@ -12,18 +15,15 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: package-${{ github.ref }}
+  group: package
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
-      prerelease: ${{ steps.meta.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v4
 
@@ -67,40 +67,39 @@ jobs:
         run: rm -f .signkey
 
       - name: Check that the build produced what the release needs
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
-          test -s "dist/os-uplink-speedtest-${{ steps.meta.outputs.version }}.pkg"
-          test -s "dist/os-uplink-speedtest-${{ steps.meta.outputs.version }}.pkg.sha256"
+          test -s "dist/os-uplink-speedtest-$VERSION.pkg"
+          test -s "dist/os-uplink-speedtest-$VERSION.pkg.sha256"
           test -s dist/site/pkg/meta.conf
           test -s dist/site/pkg/packagesite.pkg
+          test -s "dist/site/pkg/All/os-uplink-speedtest-$VERSION.pkg"
           test -s dist/site/uplink-speedtest.pub
           test -s dist/site/uplink-speedtest.conf
-          test ! -e dist/.signkey
+          test ! -e dist/site/.signkey
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: package-${{ steps.meta.outputs.version }}
-          path: dist/
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist/site
-
-  release:
-    needs: build
-    if: github.ref_type == 'tag'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: package-${{ needs.build.outputs.version }}
-          path: dist
-      - name: Create the release
+      # The branch holds only the current repository: a pkg repository serves what it
+      # serves, and every earlier version stays downloadable from its own release.
+      - name: Publish the repository to gh-pages
+        if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
-          PRERELEASE: ${{ needs.build.outputs.prerelease }}
-          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          cd dist/site
+          git init -q -b gh-pages
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -q -m "pkg repository for $GITHUB_REF_NAME"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" gh-pages
+
+      - name: Create the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ steps.meta.outputs.prerelease }}
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
           notes=$(printf '%s\n' \
             "Install on OPNsense 26.x as root:" \
@@ -113,18 +112,5 @@ jobs:
             "Or add the signed package repository once and install from System - Firmware - Plugins; see the README.")
           set -- --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes "$notes"
           if [ "$PRERELEASE" = true ]; then set -- "$@" --prerelease; fi
-          gh release create "$GITHUB_REF_NAME" "$@" dist/*.pkg dist/*.pkg.sha256
-
-  pages:
-    needs: build
-    if: github.ref_type == 'tag' && github.event.repository.private == false
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - id: deploy
-        uses: actions/deploy-pages@v4
+          gh release create "$GITHUB_REF_NAME" "$@" \
+            "dist/os-uplink-speedtest-$VERSION.pkg" "dist/os-uplink-speedtest-$VERSION.pkg.sha256"
