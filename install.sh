@@ -9,7 +9,11 @@
 set -e
 
 PLUGIN="os-uplink-speedtest"
-VERSION="1.1.3"
+VERSION="1.2.0"
+NAMESPACE="UplinkSpeedtest"      # MVC namespace and config.xml node
+ACTION="uplinkspeedtest"         # configd action, also the cron command
+WIDGET="uplinkspeedtest"         # dashboard widget id and page privilege
+DATADIR="/var/db/uplink-speedtest"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC="${HERE}/src"
 
@@ -29,6 +33,52 @@ OOKLA_ORIGIN="$(pkg query %o py313-speedtest-cli)"
 OOKLA_VERSION="$(pkg query %v py313-speedtest-cli)"
 IPERF3_ORIGIN="$(pkg query %o iperf3)"
 IPERF3_VERSION="$(pkg query %v iperf3)"
+
+# ---------------------------------------------------------------------------
+# An earlier release of this plugin may be installed under a different package
+# name. Everything needed to carry it over is read off that package itself, so
+# this works for any past (or future) rename, not one hard-coded one.
+# ---------------------------------------------------------------------------
+LEGACY=""
+for candidate in $(pkg query -g %n '*speedtest*' 2>/dev/null); do
+    [ "${candidate}" = "${PLUGIN}" ] && continue
+    pkg info -l "${candidate}" 2>/dev/null \
+        | grep -q '/usr/local/opnsense/scripts/OPNsense/.*/.*_speedtest\.py$' || continue
+    LEGACY="${candidate}"
+    break
+done
+
+if [ -n "${LEGACY}" ]; then
+    LEGACY_FILES="$(pkg info -l "${LEGACY}")"
+    LEGACY_NS="$(echo "${LEGACY_FILES}" | sed -n 's|.*/mvc/app/models/OPNsense/\([^/]*\)/General\.xml$|\1|p' | head -1)"
+    LEGACY_ACTION="$(echo "${LEGACY_FILES}" | sed -n 's|.*/actions\.d/actions_\([^/]*\)\.conf$|\1|p' | head -1)"
+    LEGACY_META="$(echo "${LEGACY_FILES}" | sed -n 's|^[[:space:]]*\(/usr/local/opnsense/www/js/widgets/Metadata/.*\.xml\)$|\1|p' | head -1)"
+    LEGACY_WIDGET=""
+    # the widget id is the one element indented inside <metadata>
+    [ -f "${LEGACY_META}" ] && LEGACY_WIDGET="$(sed -n 's|^[[:space:]][[:space:]]*<\([a-z0-9]\{1,\}\)>$|\1|p' "${LEGACY_META}" | head -1)"
+    LEGACY_DATA="/var/db/${LEGACY#os-}"
+
+    echo "${PLUGIN}: upgrading from ${LEGACY} (namespace ${LEGACY_NS}, action ${LEGACY_ACTION}, widget ${LEGACY_WIDGET})"
+
+    if [ -n "${LEGACY_NS}" ] && [ -n "${LEGACY_ACTION}" ] && [ -n "${LEGACY_WIDGET}" ]; then
+        # the migrator saves through OPNsense's own config API, which keeps a restorable
+        # copy under /conf/backup first, so no extra backup is made here
+        "${HERE}/tools/migrate-legacy-config.php" \
+            "${LEGACY_NS}" "${NAMESPACE}" "${LEGACY_ACTION}" "${ACTION}" "${LEGACY_WIDGET}" "${WIDGET}"
+    else
+        echo "${PLUGIN}: could not read the old identifiers off ${LEGACY}; settings not migrated" >&2
+    fi
+
+    # the measurement history is not owned by pkg, so it survives on its own path
+    if [ -d "${LEGACY_DATA}" ] && [ ! -d "${DATADIR}" ]; then
+        mv "${LEGACY_DATA}" "${DATADIR}"
+        echo "${PLUGIN}: history moved ${LEGACY_DATA} -> ${DATADIR}"
+    elif [ -d "${LEGACY_DATA}" ]; then
+        echo "${PLUGIN}: ${DATADIR} already exists, left ${LEGACY_DATA} alone" >&2
+    fi
+
+    pkg delete -y "${LEGACY}"
+fi
 
 mkdir -p "${STAGE}/usr/local/opnsense/version"
 tar -cf - -C "${SRC}" . | tar -xf - -C "${STAGE}/usr/local"
