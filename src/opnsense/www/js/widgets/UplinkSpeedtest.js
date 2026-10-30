@@ -9,6 +9,7 @@ export default class UplinkSpeedtest extends BaseWidget {
         this.tickTimeout = 60; // scheduled tests run a few times a day, the file barely changes
         this.chart = null;
         this.fields = ['download', 'upload', 'ping', 'jitter'];
+        this.providers = {cloudflare: 'Cloudflare', ookla: 'Ookla', iperf3: 'iperf3'};
     }
 
     getGridOptions() {
@@ -38,14 +39,16 @@ export default class UplinkSpeedtest extends BaseWidget {
                     <div style="height: 70px; padding: 0 6px;">
                         <canvas id="${this.id}-spark"></canvas>
                     </div>
-                    <div id="${this.id}-footer" style="font-size: 11px; opacity: 0.7; padding: 4px 6px;"></div>
+                    <div id="${this.id}-provider" style="font-size: 11px; font-weight: 600; padding: 4px 6px 0 6px;"></div>
+                    <div id="${this.id}-footer" style="font-size: 11px; opacity: 0.7; padding: 0 6px 4px 6px;"></div>
                 </div>
             </div>
         `);
     }
 
     async onWidgetTick() {
-        const data = await this.ajaxCall('/api/uplink_speedtest/service/history', {limit: 20});
+        const data = await this.ajaxCall('/api/uplink_speedtest/service/history',
+                                         {limit: 20, provider: 'default'});
         const rows = (data && data.rows) ? data.rows : [];
 
         if (rows.length === 0) {
@@ -66,7 +69,9 @@ export default class UplinkSpeedtest extends BaseWidget {
         $(`#${this.id}-ping`).text(this._ms(latest.ping));
         $(`#${this.id}-jitter`).text(this._ms(latest.jitter));
 
+        const provider = this.providers[data.provider] ?? data.provider ?? '';
         const server = [latest.server_sponsor, latest.server_name].filter(Boolean).join(' - ');
+        $(`#${this.id}-provider`).text(provider);
         $(`#${this.id}-footer`).text(this._when(latest.timestamp) + (server ? ' · ' + server : ''));
 
         this._drawSparkline(rows);

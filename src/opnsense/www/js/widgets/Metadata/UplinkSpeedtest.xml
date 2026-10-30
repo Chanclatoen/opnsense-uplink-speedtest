@@ -11,7 +11,7 @@
             <upload>Up Mbit/s</upload>
             <ping>Latency ms</ping>
             <jitter>Jitter ms</jitter>
-            <noresults>No speedtest results yet. Click to run one.</noresults>
+            <noresults>No results for the default provider yet. Click to run one.</noresults>
         </translations>
     </uplinkspeedtest>
 </metadata>

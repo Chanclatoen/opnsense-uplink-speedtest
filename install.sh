@@ -9,7 +9,7 @@
 set -e
 
 PLUGIN="os-uplink-speedtest"
-VERSION="1.0.0"
+VERSION="1.1.0"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC="${HERE}/src"
 
@@ -20,17 +20,25 @@ STAGE="$(mktemp -d "/tmp/${PLUGIN}-stage.XXXXXX")"
 BUILD="$(mktemp -d "/tmp/${PLUGIN}-build.XXXXXX")"
 trap 'rm -rf "${STAGE}" "${BUILD}"' EXIT
 
-# the measurement engine comes from the OPNsense repository, never from a download
-pkg info -e py313-speedtest-cli || pkg install -y py313-speedtest-cli
-ENGINE_ORIGIN="$(pkg query %o py313-speedtest-cli)"
-ENGINE_VERSION="$(pkg query %v py313-speedtest-cli)"
+# the Ookla and iperf3 engines come from the OPNsense repository, never from a download;
+# the default provider (Cloudflare) needs nothing but the Python standard library
+for dependency in py313-speedtest-cli iperf3; do
+    pkg info -e "${dependency}" || pkg install -y "${dependency}"
+done
+OOKLA_ORIGIN="$(pkg query %o py313-speedtest-cli)"
+OOKLA_VERSION="$(pkg query %v py313-speedtest-cli)"
+IPERF3_ORIGIN="$(pkg query %o iperf3)"
+IPERF3_VERSION="$(pkg query %v iperf3)"
 
 mkdir -p "${STAGE}/usr/local/opnsense/version"
 tar -cf - -C "${SRC}" . | tar -xf - -C "${STAGE}/usr/local"
+# a checkout that was run from in place has __pycache__ in it; those bytes are not ours to ship
+find "${STAGE}" -name __pycache__ -type d -prune -exec rm -rf {} +
 echo "${VERSION}" > "${STAGE}/usr/local/opnsense/version/uplink-speedtest"
 find "${STAGE}" -type d -exec chmod 755 {} +
 find "${STAGE}" -type f -exec chmod 644 {} +
 chmod 755 "${STAGE}/usr/local/opnsense/scripts/OPNsense/UplinkSpeedtest/uplink_speedtest.py"
+chmod 755 "${STAGE}/usr/local/opnsense/scripts/OPNsense/UplinkSpeedtest/uplink_cloudflare.py"
 
 (cd "${STAGE}" && find . -type f | sed 's|^\.||' | sort) > "${BUILD}/plist"
 
@@ -49,7 +57,8 @@ categories: [net]
 licenselogic: single
 licenses: [BSD2CLAUSE]
 deps: {
-  py313-speedtest-cli: { origin: "${ENGINE_ORIGIN}", version: "${ENGINE_VERSION}" }
+  py313-speedtest-cli: { origin: "${OOKLA_ORIGIN}", version: "${OOKLA_VERSION}" }
+  iperf3: { origin: "${IPERF3_ORIGIN}", version: "${IPERF3_VERSION}" }
 }
 annotations: {
   product_id: uplink-speedtest

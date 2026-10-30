@@ -9,11 +9,15 @@ namespace OPNsense\UplinkSpeedtest\Api;
 
 use OPNsense\Base\ApiControllerBase;
 use OPNsense\Core\Backend;
+use OPNsense\UplinkSpeedtest\General;
 
 class ServiceController extends ApiControllerBase
 {
     private const DATA_DIR = '/var/db/uplink-speedtest';
     private const MAX_ROWS = 1000;
+    private const PROVIDERS = ['cloudflare', 'ookla', 'iperf3'];
+    /* results written by 1.0 predate the provider field and were all Ookla */
+    private const LEGACY_PROVIDER = 'ookla';
 
     /**
      * start a measurement in the background; the test outlives a web request, so do not wait for it
@@ -23,8 +27,16 @@ class ServiceController extends ApiControllerBase
         if (!$this->request->isPost()) {
             return ['status' => 'failed', 'message' => gettext('Use POST to start a test.')];
         }
-        (new Backend())->configdRun('uplinkspeedtest run', true);
-        return ['status' => 'started'];
+        $provider = (string)$this->request->getPost('provider', null, '');
+        if ($provider === '') {
+            (new Backend())->configdRun('uplinkspeedtest run', true);
+            return ['status' => 'started', 'provider' => $this->defaultProvider()];
+        }
+        if (!in_array($provider, self::PROVIDERS, true)) {
+            return ['status' => 'failed', 'message' => gettext('Unknown provider.')];
+        }
+        (new Backend())->configdpRun('uplinkspeedtest runwith', [$provider], true);
+        return ['status' => 'started', 'provider' => $provider];
     }
 
     /**
@@ -37,24 +49,61 @@ class ServiceController extends ApiControllerBase
             'running' => !empty($state['running']),
             'last_status' => $state['status'] ?? 'unknown',
             'last_message' => $state['message'] ?? '',
+            'provider' => $state['provider'] ?? '',
             'finished' => $state['finished'] ?? null,
         ];
     }
 
+    /**
+     * newest first, optionally one provider only ("default" = the configured one), so a
+     * chart or sparkline never mixes engines that are not comparable
+     */
     public function historyAction()
     {
         $records = $this->readJson('history.json');
         if (!array_is_list($records)) {
             $records = [];
         }
+        $provider = (string)$this->request->get('provider', null, '');
+        if ($provider === 'default') {
+            $provider = $this->defaultProvider();
+        }
+        $matching = [];
+        foreach ($records as $record) {
+            if (!is_array($record)) {
+                continue;
+            }
+            $record['provider'] = $record['provider'] ?? self::LEGACY_PROVIDER;
+            if ($provider !== '' && $record['provider'] !== $provider) {
+                continue;
+            }
+            $matching[] = $record;
+        }
         $limit = (int)$this->request->get('limit', null, 50);
         $limit = max(1, min($limit, self::MAX_ROWS));
-        $rows = array_slice($records, -$limit);
+        $rows = array_slice($matching, -$limit);
         return [
-            'total' => count($records),
+            'provider' => $provider,
+            'total' => count($matching),
             'rows' => array_reverse($rows),
             'stats' => $this->stats($rows),
         ];
+    }
+
+    /**
+     * which providers produced results, so the page can offer a filter that is not empty
+     */
+    public function providersAction()
+    {
+        $records = $this->readJson('history.json');
+        $counts = [];
+        foreach ($records as $record) {
+            if (is_array($record)) {
+                $name = $record['provider'] ?? self::LEGACY_PROVIDER;
+                $counts[$name] = ($counts[$name] ?? 0) + 1;
+            }
+        }
+        return ['default' => $this->defaultProvider(), 'counts' => $counts];
     }
 
     public function serversAction()
@@ -67,6 +116,12 @@ class ServiceController extends ApiControllerBase
                     'message' => $message ?: gettext('Could not fetch the speedtest server list.')];
         }
         return ['status' => 'ok', 'rows' => $servers];
+    }
+
+    private function defaultProvider(): string
+    {
+        $configured = (string)(new General())->provider;
+        return in_array($configured, self::PROVIDERS, true) ? $configured : 'cloudflare';
     }
 
     private function readJson(string $name): array
