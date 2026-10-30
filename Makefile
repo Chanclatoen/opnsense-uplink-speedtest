@@ -3,7 +3,7 @@
 # install.sh builds the same tree into a package without that checkout.
 
 PLUGIN_NAME=		uplink-speedtest
-PLUGIN_VERSION=		1.1.2
+PLUGIN_VERSION=		1.1.3
 PLUGIN_COMMENT=		Periodic uplink speedtest with a dashboard widget
 PLUGIN_MAINTAINER=	188175474+Chanclatoen@users.noreply.github.com
 PLUGIN_WWW=		https://github.com/Chanclatoen/opnsense-uplink-speedtest

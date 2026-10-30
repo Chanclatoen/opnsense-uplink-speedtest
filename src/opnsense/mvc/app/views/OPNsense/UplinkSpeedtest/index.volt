@@ -183,23 +183,38 @@
             refresh();
         });
 
-        $('#speedtest-servers-load').click(function () {
-            const $button = $(this).prop('disabled', true);
-            $('#speedtest-servers-message').text('{{ lang._("Fetching the server list...") }}');
-            ajaxGet('/api/uplink_speedtest/service/servers', {}, function (data) {
+        function loadServers() {
+            const $button = $('#speedtest-servers-load').prop('disabled', true);
+            const search = $('#speedtest-servers-search').val() || '';
+            $('#speedtest-servers-message').text(search
+                ? '{{ lang._("Searching...") }}'
+                : '{{ lang._("Fetching the nearest servers...") }}');
+            ajaxGet('/api/uplink_speedtest/service/servers', {'search': search}, function (data) {
                 $button.prop('disabled', false);
                 if (!data || data.status !== 'ok') {
                     $('#speedtest-servers-message').text((data && data.message) ? data.message : '{{ lang._("Could not fetch the server list.") }}');
                     return;
                 }
-                $('#speedtest-servers-message').text('');
+                if (!data.rows.length) {
+                    $('#speedtest-servers-table').hide();
+                    $('#speedtest-servers-message').text('{{ lang._("No server matched that search.") }}');
+                    return;
+                }
+                /* the fallback list is the one that geolocates by WAN IP, so say when it is used */
+                $('#speedtest-servers-message').text(data.rows[0].source === 'api'
+                    ? ''
+                    : '{{ lang._("The live Ookla list could not be reached; this is the built-in speedtest-cli list, whose distances follow the WAN IP.") }}');
                 const $body = $('#speedtest-servers-body').empty();
                 data.rows.forEach(function (row) {
                     const $use = $('<button type="button" class="btn btn-xs btn-default"/>')
                         .text('{{ lang._("Use") }}')
                         .click(function () {
                             $('#general\\.server').val(row.id);
-                            $('#speedtest-servers-message').text('{{ lang._("Server filled in below, press Save to keep it.") }}');
+                            const $mode = $('#general\\.server_mode').val('custom');
+                            if ($.fn.selectpicker) {
+                                $mode.selectpicker('refresh');
+                            }
+                            $('#speedtest-servers-message').text('{{ lang._("Filled in as the Custom Ookla server, press Save to keep it.") }}');
                         });
                     $body.append($('<tr/>').append(
                         $('<td/>').text(row.id),
@@ -211,6 +226,23 @@
                 });
                 $('#speedtest-servers-table').show();
             });
+        }
+
+        $('#speedtest-servers-load').click(loadServers);
+        $('#speedtest-servers-search').keypress(function (event) {
+            if (event.which === 13) {
+                event.preventDefault();
+                loadServers();
+            }
+        });
+
+        /* name the server Auto last used, so an empty iperf3 host is not a mystery */
+        ajaxGet('/api/uplink_speedtest/service/status', {}, function (state) {
+            const pick = state ? state.iperf3_auto : null;
+            if (pick && pick.server) {
+                $('#speedtest-iperf3-auto').text('{{ lang._("iperf3 Auto last used") }} '
+                    + pick.server + (pick.country ? ' (' + pick.country + ')' : ''));
+            }
         });
 
         $('#speedtest-save').click(function () {
@@ -325,9 +357,13 @@
         {{ partial("layout_partials/base_form", ['fields': generalForm, 'id': 'frm_general']) }}
         <button class="btn btn-primary" id="speedtest-save" type="button">{{ lang._('Save') }}</button>
         <span id="speedtest-save-message" style="margin-left: 10px;"></span>
+        <div id="speedtest-iperf3-auto" style="margin-top: 8px; opacity: 0.8;"></div>
         <hr/>
+        <input type="text" class="form-control" id="speedtest-servers-search"
+               placeholder="{{ lang._('City or provider, empty for the nearest') }}"
+               style="display: inline-block; width: 22em; margin-right: 6px;"/>
         <button class="btn btn-default" id="speedtest-servers-load" type="button">
-            {{ lang._('Show nearest Ookla servers') }}
+            {{ lang._('Show Ookla servers') }}
         </button>
         <span id="speedtest-servers-message" style="margin-left: 10px;"></span>
         <div class="table-responsive" id="speedtest-servers-table" style="display: none;">

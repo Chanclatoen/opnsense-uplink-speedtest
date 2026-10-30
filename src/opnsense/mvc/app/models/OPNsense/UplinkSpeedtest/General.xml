@@ -1,6 +1,6 @@
 <model>
     <mount>//OPNsense/UplinkSpeedtest/general</mount>
-    <version>1.1.0</version>
+    <version>1.1.3</version>
     <description>Uplink speedtest settings</description>
     <items>
         <provider type="OptionField">
@@ -13,25 +13,40 @@
             </OptionValues>
             <ValidationMessage>Choose Cloudflare, Ookla or iperf3.</ValidationMessage>
         </provider>
+        <server_mode type="OptionField">
+            <default>auto</default>
+            <Required>Y</Required>
+            <OptionValues>
+                <auto>Auto - the nearest server Ookla reports</auto>
+                <custom>Custom - the server ID below</custom>
+            </OptionValues>
+            <ValidationMessage>Choose Auto or Custom.</ValidationMessage>
+        </server_mode>
         <server type="TextField">
             <Mask>/^[0-9]{0,8}$/</Mask>
             <ValidationMessage>Enter a numeric speedtest.net server ID, or leave empty to use the nearest server.</ValidationMessage>
         </server>
+        <iperf3_mode type="OptionField">
+            <default>auto</default>
+            <Required>Y</Required>
+            <OptionValues>
+                <auto>Auto - a public server near this firewall</auto>
+                <custom>Custom - the server below</custom>
+            </OptionValues>
+            <ValidationMessage>Choose Auto or Custom.</ValidationMessage>
+        </iperf3_mode>
         <iperf3_server type="HostnameField">
-            <default>fra.speedtest.clouvider.net</default>
             <IpAllowed>Y</IpAllowed>
             <ValidationMessage>Enter the hostname or IP address of an iperf3 server.</ValidationMessage>
         </iperf3_server>
         <iperf3_port type="PortField">
-            <default>5200</default>
             <EnableWellKnown>Y</EnableWellKnown>
             <ValidationMessage>Enter the TCP port the iperf3 server listens on.</ValidationMessage>
         </iperf3_port>
         <iperf3_streams type="IntegerField">
-            <default>4</default>
             <MinimumValue>1</MinimumValue>
             <MaximumValue>16</MaximumValue>
-            <ValidationMessage>Enter 1 to 16 parallel streams.</ValidationMessage>
+            <ValidationMessage>Enter 1 to 16 parallel streams, or leave empty for 4.</ValidationMessage>
         </iperf3_streams>
     </items>
 </model>

@@ -51,6 +51,8 @@ class ServiceController extends ApiControllerBase
             'last_message' => $state['message'] ?? '',
             'provider' => $state['provider'] ?? '',
             'finished' => $state['finished'] ?? null,
+            /* which server "Auto" settled on last, so the form can name it */
+            'iperf3_auto' => $this->readJson('auto.json')['iperf3'] ?? null,
         ];
     }
 
@@ -106,16 +108,35 @@ class ServiceController extends ApiControllerBase
         return ['default' => $this->defaultProvider(), 'counts' => $counts];
     }
 
+    /**
+     * the nearest Ookla servers, or the ones matching a city or sponsor when searching
+     */
     public function serversAction()
     {
-        $output = (new Backend())->configdRun('uplinkspeedtest servers', false, 120);
+        $search = $this->searchText((string)$this->request->get('search', null, ''));
+        $backend = new Backend();
+        if ($search === '') {
+            $output = $backend->configdRun('uplinkspeedtest servers', false, 120);
+        } else {
+            $output = $backend->configdpRun('uplinkspeedtest searchservers', [$search], false, 120);
+        }
         $servers = json_decode(trim((string)$output), true);
         if (!is_array($servers) || !array_is_list($servers)) {
             $message = is_array($servers) ? ($servers['error'] ?? '') : '';
-            return ['status' => 'failed',
+            return ['status' => 'failed', 'search' => $search,
                     'message' => $message ?: gettext('Could not fetch the speedtest server list.')];
         }
-        return ['status' => 'ok', 'rows' => $servers];
+        return ['status' => 'ok', 'search' => $search, 'rows' => $servers];
+    }
+
+    /**
+     * the search text reduced to what a place or sponsor name needs; the script applies the
+     * same rule, this keeps a rejected character from travelling at all
+     */
+    private function searchText(string $search): string
+    {
+        $kept = preg_replace('/[^\p{L}\p{N} .,\'&_-]/u', '', $search);
+        return trim(mb_substr((string)$kept, 0, 60));
     }
 
     private function defaultProvider(): string

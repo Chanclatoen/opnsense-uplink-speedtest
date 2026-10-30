@@ -6,27 +6,39 @@
         <help>Which engine the dashboard widget and the scheduled runs use. Cloudflare needs no extra package and reports the Cloudflare PoP it measured against; Ookla uses speedtest-cli; iperf3 measures raw TCP throughput against a public iperf3 server.</help>
     </field>
     <field>
-        <id>general.server</id>
+        <id>general.server_mode</id>
         <label>Ookla server</label>
+        <type>dropdown</type>
+        <help>Auto measures against the nearest server in Ookla's own live server list, which places this firewall from the connection itself. Choose Custom to always use one fixed server.</help>
+    </field>
+    <field>
+        <id>general.server</id>
+        <label>Ookla server ID</label>
         <type>text</type>
-        <help>Numeric speedtest.net server ID to measure against. Leave empty to let speedtest-cli pick the nearest server on every run. This WAN IP geolocates wrongly, so the automatic pick wanders between far-away servers: pin one to make the series comparable.</help>
+        <help>Numeric speedtest.net server ID, used when the choice above is Custom. Search the list below and press Use, or type an ID. The value is kept when you switch back to Auto.</help>
+    </field>
+    <field>
+        <id>general.iperf3_mode</id>
+        <label>iperf3 server</label>
+        <type>dropdown</type>
+        <help>Auto detects which country this firewall is in and tries verified public iperf3 servers in that region, moving on while a server is busy. Choose Custom to always use your own server.</help>
     </field>
     <field>
         <id>general.iperf3_server</id>
-        <label>iperf3 server</label>
+        <label>iperf3 host</label>
         <type>text</type>
-        <help>Hostname or IP of the iperf3 server. Default: fra.speedtest.clouvider.net (Frankfurt). When it is busy the plugin falls back to a short built-in list.</help>
+        <help>Hostname or IP of your own iperf3 server, used when the choice above is Custom. The value is kept when you switch back to Auto.</help>
     </field>
     <field>
         <id>general.iperf3_port</id>
         <label>iperf3 port</label>
         <type>text</type>
-        <help>TCP port of the iperf3 server, 5200 by default. Public servers usually offer a range (5200-5209), one test at a time per port.</help>
+        <help>TCP port of your own iperf3 server. Empty means 5201. Public servers usually offer a range (5200-5209), one test at a time per port.</help>
     </field>
     <field>
         <id>general.iperf3_streams</id>
         <label>iperf3 streams</label>
         <type>text</type>
-        <help>Parallel TCP streams, 1 to 16. Four is enough to fill a gigabit uplink from this box.</help>
+        <help>Parallel TCP streams, 1 to 16. Empty means 4, which is enough to fill a gigabit uplink.</help>
     </field>
 </form>

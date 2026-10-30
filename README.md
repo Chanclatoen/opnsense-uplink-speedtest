@@ -11,8 +11,8 @@ Three providers, pick the default on the settings tab:
 | Provider | Engine | Measures | Reports |
 | --- | --- | --- | --- |
 | **Cloudflare** (default) | Python standard library only | HTTPS against `speed.cloudflare.com`, 4 parallel streams | the PoP it was served from (`colo`, e.g. `CDG`) |
-| **Ookla** | `speedtest-cli` | speedtest.net, nearest server or one you pin | server id, sponsor, city, country |
-| **iperf3** | `iperf3` | raw TCP against a public iperf3 server, `-R` then forward | `host:port` |
+| **Ookla** | `speedtest-cli` engine | speedtest.net, nearest from Ookla's live server API or one you pin | server id, sponsor, city, country |
+| **iperf3** | `iperf3` | raw TCP against a public iperf3 server chosen by location, `-R` then forward | `host:port` |
 
 Every result carries the provider that produced it, and the chart, the sparkline and the
 widget each show one provider at a time — mixing them would compare three different things.
@@ -76,7 +76,7 @@ The `src/` layout and `Makefile` match `opnsense/plugins`: copy this directory t
 
 | Piece | Path |
 | --- | --- |
-| Engine | `/usr/local/opnsense/scripts/OPNsense/UplinkSpeedtest/uplink_speedtest.py` (`run [provider]`, `servers`, `selftest`) |
+| Engine | `/usr/local/opnsense/scripts/OPNsense/UplinkSpeedtest/uplink_speedtest.py` (`run [provider]`, `servers [search]`, `selftest`) |
 | Cloudflare provider | `.../UplinkSpeedtest/uplink_cloudflare.py` (standard library only) |
 | configd actions | `/usr/local/opnsense/service/conf/actions.d/actions_uplinkspeedtest.conf` |
 | API | `/api/uplink_speedtest/service/{run,status,history,providers,servers}`, `/api/uplink_speedtest/settings/{get,set}` |
@@ -85,7 +85,8 @@ The `src/` layout and `Makefile` match `opnsense/plugins`: copy this directory t
 | History / state | `/var/db/uplink-speedtest/history.json`, `state.json` |
 
 `configctl uplinkspeedtest selftest` runs the built-in checks on the history cap, the latency
-parsers, the provider defaulting and the iperf3 server ordering.
+parsers, the provider defaulting, the Auto/Custom choice, the search sanitiser, the API
+server mapping and the iperf3 region ordering.
 `configctl uplinkspeedtest runwith <provider>` measures with one named provider; an unknown
 name falls back to the default rather than failing, and configd passes the name as an
 argument, never through a shell.
@@ -116,10 +117,23 @@ the page polls `service/status`, so a slow test can never time out a web request
   10 s with the ICMP round trip it measures anyway.
 * **Ookla jitter is ours, not Ookla's.** `speedtest-cli` reports no jitter, so the plugin uses
   ICMP round-trip stddev to the chosen server (`ping -c 10`); `null` when it does not answer.
-* **Ookla server choice matters.** The automatic pick is nearest-by-geoIP, which can be the
-  wrong country when the WAN IP geolocates badly. Pin a server ID if the auto pick wanders.
-* **Public iperf3 servers are single-slot.** Each port takes one test at a time, so the
-  plugin tries the configured server first and then a short built-in list, with hard
-  timeouts, and reports what every candidate said if none was free.
+* **The Ookla server comes from Ookla's own list, not speedtest-cli's.** `speedtest-cli`
+  ships a static server list that is years stale and ranks it by the WAN IP's geolocation,
+  which on a tunnelled or badly-registered uplink is the wrong country: that is why its
+  "closest" server used to be in France for a box in Nuremberg. The plugin asks
+  `https://www.speedtest.net/api/js/servers` instead, which places the client from the
+  request itself, and hands the chosen entry straight to the engine, so a server that only
+  the current list knows can still be measured against. Auto injects the nearest few and
+  lets the engine take the one with the lowest latency; Custom injects exactly the pinned ID,
+  resolved from the live list or from the cache of servers the page has shown. Only if the
+  API cannot be reached does the old static list come back, and the page says so.
+* **iperf3 picks by location, not by a baked-in default.** With no server configured, the
+  plugin reads the country from `https://speed.cloudflare.com/cdn-cgi/trace` and walks the
+  verified public servers for that region and its neighbours; the last Auto pick is shown on
+  the settings page. Each public port takes one test at a time, so a busy server costs only
+  the next candidate, and if a whole region stays silent the run fails with
+  `no reachable iperf3 server for <country>` rather than hanging.
+* **Auto and Custom are a choice, not a side effect of an empty field.** Switching a provider
+  back to Auto keeps the server you had typed, so Custom is one dropdown away again.
 * The history table and chart show the most recent 50 results of the selected provider; the
   file keeps 1000 across all providers.
