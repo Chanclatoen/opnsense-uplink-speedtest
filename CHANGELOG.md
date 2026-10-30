@@ -3,6 +3,26 @@
 All notable changes to this project. Versions are the package version
 (`pkg info os-uplink-speedtest`).
 
+## 1.2.1 — 2026-10-30
+
+### Added
+* **Real packages, two ways to install.** A GitHub Actions workflow builds the package on a
+  FreeBSD 14 VM for every `v*` tag, attaches it and its checksum to the GitHub Release, and
+  publishes a signed `pkg` repository to GitHub Pages. Adding that repository once makes the
+  plugin install and update from **System → Firmware → Plugins** like any other, which
+  replaces "copy the checkout to the firewall and run a script as root" as the way in.
+
+### Changed
+* The package build moved out of `install.sh` into `tools/build-package.sh`, so the firewall
+  and the release workflow produce the same package from the same manifest. `install.sh` is
+  now the from-source route only.
+* The old-name migration moved into the package's post-install
+  (`scripts/OPNsense/UplinkSpeedtest/legacy-migrate.sh` plus the migrator next to it), so it
+  also happens when the package is installed from the repository or a release. It reads the
+  old identifiers off the filesystem instead of off the installed package, and it does not
+  delete the old package — pkg holds its database while post-install runs — it prints the
+  `pkg delete` command, which `install.sh` then runs itself.
+
 ## 1.2.0 — 2026-10-30
 
 ### Changed

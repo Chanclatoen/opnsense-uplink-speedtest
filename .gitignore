@@ -1,4 +1,6 @@
 work/
+dist/
+.signkey
 *.pkg
 *.txz
 __pycache__/

@@ -7,8 +7,8 @@
  *
  * Carry an older release of this plugin over to the identifiers this one uses, so an
  * upgrade keeps the settings, the cron schedule, the page privilege and the widget that
- * is already on somebody's dashboard. install.sh reads the old identifiers off the
- * installed package and passes them in; nothing here is specific to one name.
+ * is already on somebody's dashboard. legacy-migrate.sh reads the old identifiers off
+ * the files on disk and passes them in; nothing here is specific to one name.
  *
  * usage: migrate-legacy-config.php <oldNamespace> <newNamespace> <oldAction> <newAction>
  *                                  <oldWidgetId> <newWidgetId>

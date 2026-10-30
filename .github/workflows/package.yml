@@ -1,0 +1,130 @@
+name: package
+
+# Builds the FreeBSD package on a real FreeBSD VM, attaches it to the GitHub Release of
+# the tag, and publishes a signed pkg repository to GitHub Pages. Runs on any v* tag; a
+# tag with a suffix (v1.2.1-test1) builds the same package but marks the release as a
+# pre-release, which is how a build is tried out without announcing it.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: package-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read the version and check it against the tag
+        id: meta
+        run: |
+          version=$(sed -n 's/^PLUGIN_VERSION=[[:space:]]*//p' Makefile)
+          if [ -z "$version" ]; then echo "no PLUGIN_VERSION in Makefile" >&2; exit 1; fi
+          prerelease=false
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            case "$GITHUB_REF_NAME" in
+              "v$version")   ;;
+              "v$version"-*) prerelease=true ;;
+              *) echo "tag $GITHUB_REF_NAME does not match PLUGIN_VERSION $version" >&2; exit 1 ;;
+            esac
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "prerelease=$prerelease" >> "$GITHUB_OUTPUT"
+
+      - name: Check the old-name migration still reads a legacy tree
+        run: sh tools/test-legacy-migrate.sh
+
+      - name: Place the repository signing key
+        env:
+          PKG_REPO_KEY: ${{ secrets.PKG_REPO_KEY }}
+        run: |
+          if [ -z "$PKG_REPO_KEY" ]; then echo "the PKG_REPO_KEY secret is not set" >&2; exit 1; fi
+          umask 077
+          printf '%s\n' "$PKG_REPO_KEY" > .signkey
+
+      - name: Build the package and sign the repository
+        uses: vmactions/freebsd-vm@v1
+        with:
+          release: '14.3'
+          usesh: true
+          copyback: true
+          run: sh ./tools/ci-build-repo.sh
+
+      - name: Remove the signing key from the runner
+        if: always()
+        run: rm -f .signkey
+
+      - name: Check that the build produced what the release needs
+        run: |
+          test -s "dist/os-uplink-speedtest-${{ steps.meta.outputs.version }}.pkg"
+          test -s "dist/os-uplink-speedtest-${{ steps.meta.outputs.version }}.pkg.sha256"
+          test -s dist/site/pkg/meta.conf
+          test -s dist/site/pkg/packagesite.pkg
+          test -s dist/site/uplink-speedtest.pub
+          test -s dist/site/uplink-speedtest.conf
+          test ! -e dist/.signkey
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ steps.meta.outputs.version }}
+          path: dist/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/site
+
+  release:
+    needs: build
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: package-${{ needs.build.outputs.version }}
+          path: dist
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRERELEASE: ${{ needs.build.outputs.prerelease }}
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          notes=$(printf '%s\n' \
+            "Install on OPNsense 26.x as root:" \
+            '' \
+            '```' \
+            "pkg install -y py313-speedtest-cli iperf3" \
+            "pkg add https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME/os-uplink-speedtest-$VERSION.pkg" \
+            '```' \
+            '' \
+            "Or add the signed package repository once and install from System - Firmware - Plugins; see the README.")
+          set -- --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --notes "$notes"
+          if [ "$PRERELEASE" = true ]; then set -- "$@" --prerelease; fi
+          gh release create "$GITHUB_REF_NAME" "$@" dist/*.pkg dist/*.pkg.sha256
+
+  pages:
+    needs: build
+    if: github.ref_type == 'tag' && github.event.repository.private == false
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4

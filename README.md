@@ -56,36 +56,73 @@ not free, which is part of why three runs a day is plenty.
 * **OPNsense 26.1 or 26.4** on FreeBSD 14 (amd64). Both tested; the code uses only MVC and
   dashboard APIs that exist in each.
 * `py313-speedtest-cli` and `iperf3`, both from the official OPNsense package repository —
-  `install.sh` pulls them in as dependencies. **No binaries are downloaded from anywhere
-  else**, and the default provider needs neither of them.
-* Root on the firewall, and a machine that can `scp` to it.
+  the package depends on them. **No binaries are downloaded from anywhere else**, and the
+  default provider needs neither of them.
+* A root shell on the firewall for the first install. There is no way around that: the GUI
+  installs plugins, but it cannot add a package repository that is not OPNsense's own.
+  Everything after the first install is GUI-only.
 
 ## Install
 
-OPNsense ships no `git`, so build the checkout into a package on the firewall:
+### Recommended: add the package repository once
+
+Signed, and at a lower priority than OPNsense's own repository, so it can never shadow an
+official package. As root on the firewall:
 
 ```sh
-tar -czf /tmp/uplink-speedtest.tgz --exclude=.git opnsense-uplink-speedtest
-scp /tmp/uplink-speedtest.tgz <user>@<firewall>:/tmp/
-ssh <user>@<firewall> 'mkdir -p /tmp/ust && tar -xzf /tmp/uplink-speedtest.tgz -C /tmp/ust \
-    && cd /tmp/ust/opnsense-uplink-speedtest && sudo ./install.sh'
+mkdir -p /usr/local/etc/pkg/keys
+fetch -o /usr/local/etc/pkg/keys/uplink-speedtest.pub \
+    https://chanclatoen.github.io/opnsense-uplink-speedtest/uplink-speedtest.pub
+fetch -o /usr/local/etc/pkg/repos/uplink-speedtest.conf \
+    https://chanclatoen.github.io/opnsense-uplink-speedtest/uplink-speedtest.conf
+pkg update
 ```
 
-`install.sh` installs the two engine packages if they are missing, builds `src/` into a real
-`os-uplink-speedtest` package and `pkg add`s it, so pkg owns every file:
-`pkg info -l os-uplink-speedtest` lists them and uninstalling takes exactly those away.
+Check the key is the one this project publishes before you trust it:
 
-Then add the cron job: **System → Settings → Cron → +**, command **Run uplink speedtest**,
+```sh
+sha256 /usr/local/etc/pkg/keys/uplink-speedtest.pub
+# SHA256 (…) = 2ea52dff8771fea1305303ba29d1b2f04484ae084cf3ea79e1419bee558ef9a6
+```
+
+That is the whole shell part. From here the plugin behaves like any other:
+**System → Firmware → Plugins**, search `os-uplink-speedtest`, press **+**. New versions
+appear in the normal firmware check and install with the normal button. `pkg` verifies the
+repository signature on every `pkg update`, and the signed index carries the checksum of
+each package, so a package this repository did not build cannot be installed from it.
+
+A major firmware upgrade rewrites `/usr/local/etc`, where both files above live. If the
+repository is gone after one, run the same four commands again.
+
+### Alternative: one `pkg add` from a release
+
+No repository to trust, and no updates — you repeat this for every version:
+
+```sh
+pkg install -y py313-speedtest-cli iperf3
+pkg add https://github.com/Chanclatoen/opnsense-uplink-speedtest/releases/download/v1.2.1/os-uplink-speedtest-1.2.1.pkg
+```
+
+The first line is needed because `pkg add` does not fetch dependencies from a repository.
+Every release also carries the package's `.sha256` next to it.
+
+### Then, either way
+
+Add the cron job: **System → Settings → Cron → +**, command **Run uplink speedtest**,
 minutes `0`, hours `6,12,18`. And add the widget: **Dashboard → Add widget → Speedtest**.
 
 ### Upgrade
 
-Run `install.sh` from the newer checkout. Settings and history are kept.
+Repository route: the normal firmware update. Release route: `pkg add -f <url of the new
+release>` — plain `pkg add` refuses when the package is already installed. Either way
+settings and history are kept.
 
-If an earlier release is installed under a *different package name*, `install.sh` finds it,
-carries its settings, cron schedule, page privilege, dashboard placement and measurement
-history across, and removes the old package. Those edits go through OPNsense's own config
-API, so the previous `config.xml` is restorable from **System → Configuration → Backups**.
+If an earlier release is installed under a *different package name*, the new package's
+post-install finds it on disk and carries its settings, cron schedule, page privilege,
+dashboard placement and measurement history across. Those edits go through OPNsense's own
+config API, so the previous `config.xml` is restorable from
+**System → Configuration → Backups**. It cannot remove the old package itself — pkg holds
+its database while the script runs — so it prints the one `pkg delete` command for that.
 
 ### Uninstall
 
@@ -95,11 +132,6 @@ rm -rf /var/db/uplink-speedtest   # and this drops the history too
 ```
 
 `./uninstall.sh` does the first line, `./uninstall.sh --purge` both.
-
-### Building inside the official plugins tree
-
-`src/` and the `Makefile` follow the `opnsense/plugins` layout: copy this directory to
-`plugins/net/uplink-speedtest` in a plugins checkout and run `make package`.
 
 ## Configuration
 
@@ -206,6 +238,40 @@ What does leave the box, and to whom:
 
 Pick **iperf3 with a Custom server you control** if you would rather no third party saw the
 traffic at all.
+
+## Development
+
+### From source
+
+OPNsense ships no `git`, so get the checkout onto the firewall first:
+
+```sh
+tar -czf /tmp/uplink-speedtest.tgz --exclude=.git opnsense-uplink-speedtest
+scp /tmp/uplink-speedtest.tgz <user>@<firewall>:/tmp/
+ssh <user>@<firewall> 'mkdir -p /tmp/ust && tar -xzf /tmp/uplink-speedtest.tgz -C /tmp/ust \
+    && cd /tmp/ust/opnsense-uplink-speedtest && sudo ./install.sh'
+```
+
+`install.sh` installs the two engine packages if they are missing, calls
+`tools/build-package.sh` to build `src/` into the same `os-uplink-speedtest` package the
+release workflow produces, `pkg add`s it and removes an older differently-named release.
+pkg owns every file: `pkg info -l os-uplink-speedtest` lists them and uninstalling takes
+exactly those away.
+
+### Building inside the official plugins tree
+
+`src/` and the `Makefile` follow the `opnsense/plugins` layout: copy this directory to
+`plugins/net/uplink-speedtest` in a plugins checkout and run `make package`.
+
+### Releases
+
+`.github/workflows/package.yml` builds the package on a FreeBSD 14 VM for every `v*` tag,
+attaches it plus its checksum to the GitHub Release, and publishes the signed `pkg`
+repository to GitHub Pages. A tag with a suffix (`v1.2.1-test1`) builds the same package
+but marks the release as a pre-release, which is how a build is tried out. The tag has to
+match `PLUGIN_VERSION` in the `Makefile` or the workflow stops. The signing key is the
+`PKG_REPO_KEY` repository secret and exists nowhere in this repository; `repo/` holds only
+its public half and the client configuration served from Pages.
 
 ## Contributing
 

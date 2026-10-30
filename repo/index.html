@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>os-uplink-speedtest package repository</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { margin: 0 auto; padding: 2rem 1rem; max-width: 46rem; font: 16px/1.6 system-ui, sans-serif; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  pre { padding: 1rem; overflow-x: auto; background: #8881; border-radius: 6px; }
+  h1 { font-size: 1.5rem; }
+  h2 { font-size: 1.1rem; margin-top: 2rem; }
+  p.note { color: #8a8a8a; }
+</style>
+
+<h1>os-uplink-speedtest</h1>
+<p>A FreeBSD package repository for the
+<a href="https://github.com/Chanclatoen/opnsense-uplink-speedtest">OPNsense uplink speedtest plugin</a>.
+Add it once on the firewall; after that the plugin installs and updates from
+<em>System &rarr; Firmware &rarr; Plugins</em> like any other.</p>
+
+<h2>Add the repository (as root, once)</h2>
+<pre><code>mkdir -p /usr/local/etc/pkg/keys
+fetch -o /usr/local/etc/pkg/keys/uplink-speedtest.pub https://chanclatoen.github.io/opnsense-uplink-speedtest/uplink-speedtest.pub
+fetch -o /usr/local/etc/pkg/repos/uplink-speedtest.conf https://chanclatoen.github.io/opnsense-uplink-speedtest/uplink-speedtest.conf
+pkg update</code></pre>
+
+<h2>What you are trusting</h2>
+<p>The repository metadata is signed with an RSA key that never leaves its owner's machine.
+<a href="uplink-speedtest.pub">uplink-speedtest.pub</a> is the matching public key; its SHA-256 is</p>
+<pre><code>2ea52dff8771fea1305303ba29d1b2f04484ae084cf3ea79e1419bee558ef9a6</code></pre>
+<p>The same value is printed in the project README, so you can compare the two before you
+trust either. The signed metadata carries the checksum of every package, so a package that
+was not built by this repository's workflow cannot be installed from it.</p>
+<p class="note">Packages are built for FreeBSD:14:amd64, which is what OPNsense 26.x runs.
+The repository priority is below OPNsense's own, so it can never shadow an official package.</p>
