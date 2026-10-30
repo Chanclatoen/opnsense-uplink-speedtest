@@ -1,7 +1,7 @@
 <model>
     <mount>//OPNsense/UplinkSpeedtest/general</mount>
     <version>1.1.0</version>
-    <description>Uplink uplink speedtest settings</description>
+    <description>Uplink speedtest settings</description>
     <items>
         <provider type="OptionField">
             <default>cloudflare</default>

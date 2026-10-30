@@ -1,5 +1,5 @@
 {#
- # Copyright (c) 2026 Uplink IT. All rights reserved.
+ # Copyright (c) 2026 Chanclatoen. All rights reserved.
  # SPDX-License-Identifier: BSD-2-Clause (see LICENSE in the repository root).
  #}
 
@@ -236,7 +236,7 @@
     <div class="col-md-12">
         <h2>{{ lang._('Uplink speedtest') }}</h2>
         <p id="speedtest-empty" style="display: none;">
-            {{ lang._('No results for this provider yet. Press "Run now", pick another provider in the filter, or add the "Run uplink speedtest (Uplink)" job under System - Settings - Cron.') }}
+            {{ lang._('No results for this provider yet. Press "Run now", pick another provider in the filter, or add the "Run uplink speedtest" job under System - Settings - Cron.') }}
         </p>
         <div id="speedtest-results" style="display: none;">
             <div class="row">

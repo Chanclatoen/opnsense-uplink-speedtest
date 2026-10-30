@@ -4,12 +4,12 @@
 # file and `pkg delete os-uplink-speedtest` takes them all away again.
 # Run as root on the OPNsense box, from the root of the checkout.
 #
-# Copyright (c) 2026 Uplink IT. SPDX-License-Identifier: BSD-2-Clause.
+# Copyright (c) 2026 Chanclatoen. SPDX-License-Identifier: BSD-2-Clause.
 
 set -e
 
 PLUGIN="os-uplink-speedtest"
-VERSION="1.1.1"
+VERSION="1.1.2"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 SRC="${HERE}/src"
 

@@ -4,6 +4,5 @@ measured against), Ookla via speedtest-cli (optionally pinned to one server ID),
 and iperf3 against a public server. Adds a Reporting - Speedtest page (latest
 result, min/avg/max, chart, history table with a provider filter, run on demand
 with any provider) and a dashboard widget showing the latest result of the
-default provider with a sparkline of its last 20 tests. The "Run uplink speedtest
-(Uplink)" job can be scheduled under System - Settings - Cron and uses the
+default provider with a sparkline of its last 20 tests. The "Run uplink speedtest" job can be scheduled under System - Settings - Cron and uses the
 default provider. History is a JSON file capped at the last 1000 results.

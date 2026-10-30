@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026 Uplink IT. All rights reserved.
+ * Copyright (c) 2026 Chanclatoen. All rights reserved.
  * SPDX-License-Identifier: BSD-2-Clause (see LICENSE in the repository root).
  */
 

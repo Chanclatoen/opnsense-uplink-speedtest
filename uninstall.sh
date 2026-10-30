@@ -3,7 +3,7 @@
 # Remove the package. Measurement history in /var/db/uplink-speedtest is kept on
 # purpose, so a reinstall picks it up again; pass --purge to delete it as well.
 #
-# Copyright (c) 2026 Uplink IT. SPDX-License-Identifier: BSD-2-Clause.
+# Copyright (c) 2026 Chanclatoen. SPDX-License-Identifier: BSD-2-Clause.
 
 set -e
 

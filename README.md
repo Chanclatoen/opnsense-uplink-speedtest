@@ -33,7 +33,7 @@ none of its code, files or assets are used here.
   sparkline of its last 20 tests, and the time and server of the last one; the title links
   to the Reporting page. It follows the dashboard theme, light or dark, because it uses the
   core widget base class and palette.
-* **Cron job** — "Run uplink speedtest (Uplink)" is selectable under
+* **Cron job** — "Run uplink speedtest" is selectable under
   **System → Settings → Cron** and runs the default provider, so the schedule is yours to pick.
 * **History** — `/var/db/uplink-speedtest/history.json`, capped at the last 1000 results,
   written atomically. Kept across a reinstall.
@@ -54,8 +54,7 @@ ssh <user>@<firewall> 'mkdir -p /tmp/jst && tar -xzf /tmp/uplink-speedtest.tgz -
 real `os-uplink-speedtest` package and `pkg add`s it. Because pkg owns the files,
 `pkg info -l os-uplink-speedtest` lists them and uninstalling removes exactly those.
 
-Then add the cron job (System → Settings → Cron → **+**, command "Run uplink speedtest
-(Uplink)"). For three tests a day: minutes `0`, hours `6,12,18`.
+Then add the cron job (System → Settings → Cron → **+**, command "Run uplink speedtest"). For three tests a day: minutes `0`, hours `6,12,18`.
 
 ## Uninstall
 
