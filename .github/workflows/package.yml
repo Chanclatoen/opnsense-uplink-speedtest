@@ -78,6 +78,10 @@ jobs:
           test -s dist/site/uplink-speedtest.pub
           test -s dist/site/uplink-speedtest.conf
           test ! -e dist/site/.signkey
+          tar -xOf "dist/os-uplink-speedtest-$VERSION.pkg" +MANIFEST | jq -e '
+            [.files[] | (.sum // .)] as $sums |
+            ($sums | length) > 0 and all($sums[]; type == "string" and startswith("1$"))
+          ' >/dev/null
 
       # The branch holds only the current repository: a pkg repository serves what it
       # serves, and every earlier version stays downloadable from its own release.

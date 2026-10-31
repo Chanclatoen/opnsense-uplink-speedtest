@@ -19,6 +19,15 @@ cd "${HERE}"
 
 [ -s "${KEY}" ] || { echo "no signing key at ${KEY}" >&2; exit 1; }
 
+PKG_VERSION="2.3.1_1"
+PKG_SHA256="74dbb941de91fda8b470eeab78926170e35737346fbe55e8a2e4c3968f79e1e3"
+PKG_PACKAGE="/tmp/pkg-${PKG_VERSION}.pkg"
+fetch -qo "${PKG_PACKAGE}" "https://pkg.opnsense.org/FreeBSD:14:amd64/26.1/latest/All/pkg-${PKG_VERSION}.pkg"
+[ "$(sha256 -q "${PKG_PACKAGE}")" = "${PKG_SHA256}" ] || { echo "pkg ${PKG_VERSION}: checksum mismatch" >&2; exit 1; }
+pkg add -f "${PKG_PACKAGE}"
+hash -r
+[ "$(pkg -v)" = "2.3.1" ] || { echo "expected pkg 2.3.1, got $(pkg -v)" >&2; exit 1; }
+
 rm -rf dist
 mkdir -p dist/site/pkg/All
 

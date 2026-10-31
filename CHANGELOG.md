@@ -3,6 +3,13 @@
 All notable changes to this project. Versions are the package version
 (`pkg info os-uplink-speedtest`).
 
+## 1.2.2 — 2026-10-31
+
+* Build packages with OPNsense 26.1's pkg 2.3.1, so every installed file has a
+  SHA-256 checksum that the target firewall can verify.
+* Reject a CI build before publishing unless every package file checksum uses the
+  `1$` SHA-256 format accepted by OPNsense.
+
 ## 1.2.1 — 2026-10-30
 
 ### Added
